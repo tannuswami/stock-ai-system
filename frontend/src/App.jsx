@@ -86,9 +86,7 @@ function App() {
 
           <h3>Price: ${stock.basic.price}</h3>
 
-          <h3>
-            Change: {stock.basic.change_pct.toFixed(2)}%
-          </h3>
+          <h3>Change: {stock.basic.change_pct.toFixed(2)}%</h3>
 
           <h3>RSI: {stock.indicators.rsi}</h3>
 

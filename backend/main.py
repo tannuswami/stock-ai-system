@@ -1,55 +1,31 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
-from typing import Dict
 import yfinance as yf
 import pandas as pd
-import numpy as np
-from datetime import datetime
 import uvicorn
 
-# =========================
+# ==========================
 # FastAPI App
-# =========================
+# ==========================
 app = FastAPI(
     title="AI Stock Platform",
     version="1.0.0"
 )
 
-# =========================
-# CORS Middleware
-# =========================
+# ==========================
+# CORS
+# ==========================
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-        "http://localhost:3000"
-    ],
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# =========================
-# Models
-# =========================
-class StockBasic(BaseModel):
-    symbol: str
-    price: float
-    change_pct: float
-
-
-class StockResponse(BaseModel):
-    basic: Dict
-    indicators: Dict
-    ai: Dict
-    chart_data: list
-
-
-# =========================
-# Root Route
-# =========================
+# ==========================
+# Root
+# ==========================
 @app.get("/")
 def root():
     return {
@@ -57,10 +33,9 @@ def root():
         "docs": "/docs"
     }
 
-
-# =========================
+# ==========================
 # Health Check
-# =========================
+# ==========================
 @app.get("/api/health")
 def health():
     return {
@@ -68,71 +43,60 @@ def health():
         "backend": "working"
     }
 
-
-# =========================
-# Search Stock
-# =========================
-@app.get("/api/stocks/search")
-def search_stocks(q: str):
-    try:
-        symbol = q.upper()
-
-        ticker = yf.Ticker(symbol)
-        info = ticker.info
-        hist = ticker.history(period="1d")
-
-        if hist.empty:
-            raise HTTPException(status_code=404, detail="Stock not found")
-
-        current = hist.iloc[-1]
-
-        return {
-            "symbol": symbol,
-            "name": info.get("longName", symbol),
-            "price": float(current["Close"]),
-            "change_pct": info.get("regularMarketChangePercent", 0)
-        }
-
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-# =========================
+# ==========================
 # RSI Calculator
-# =========================
+# ==========================
 def calculate_rsi(prices, period=14):
     delta = prices.diff()
 
-    gain = delta.where(delta > 0, 0)
-    loss = -delta.where(delta < 0, 0)
+    gain = delta.clip(lower=0)
+    loss = -delta.clip(upper=0)
 
-    avg_gain = gain.rolling(window=period).mean()
-    avg_loss = loss.rolling(window=period).mean()
+    avg_gain = gain.rolling(period).mean()
+    avg_loss = loss.rolling(period).mean()
 
     rs = avg_gain / avg_loss
     rsi = 100 - (100 / (1 + rs))
 
-    return float(rsi.iloc[-1]) if not rsi.empty else 50.0
+    latest = rsi.iloc[-1]
 
+    if pd.isna(latest):
+        return 50.0
 
-# =========================
-# Stock Details
-# =========================
+    return round(float(latest), 2)
+
+# ==========================
+# Stock Route
+# ==========================
 @app.get("/api/stocks/{symbol}")
 def get_stock(symbol: str):
+
     try:
-        ticker = yf.Ticker(symbol.upper())
-        hist = ticker.history(period="3mo")
+        symbol = symbol.upper()
+
+        ticker = yf.Ticker(symbol)
+
+        hist = ticker.history(
+            period="6mo",
+            interval="1d"
+        )
 
         if hist.empty:
-            raise HTTPException(status_code=404, detail="No stock data found")
+            raise HTTPException(
+                status_code=404,
+                detail=f"No stock data found for {symbol}"
+            )
 
         current = hist.iloc[-1]
-        prev = hist.iloc[-2] if len(hist) > 1 else current
+        prev = hist.iloc[-2]
+
+        price = float(current["Close"])
+        prev_price = float(prev["Close"])
+
+        change_pct = ((price - prev_price) / prev_price) * 100
 
         rsi = calculate_rsi(hist["Close"])
 
-        # AI Signal Logic
         if rsi < 30:
             signal = "STRONG BUY"
             confidence = 0.90
@@ -145,27 +109,20 @@ def get_stock(symbol: str):
 
         chart_data = []
 
-        for index, row in hist.tail(50).iterrows():
+        for idx, row in hist.tail(50).iterrows():
             chart_data.append({
-                "date": str(index.date()),
-                "open": float(row["Open"]),
-                "high": float(row["High"]),
-                "low": float(row["Low"]),
-                "close": float(row["Close"]),
-                "volume": int(row["Volume"])
+                "date": str(idx.date()),
+                "close": round(float(row["Close"]), 2)
             })
 
         return {
             "basic": {
-                "symbol": symbol.upper(),
-                "price": float(current["Close"]),
-                "change": float(current["Close"] - prev["Close"]),
-                "change_pct": float(
-                    ((current["Close"] - prev["Close"]) / prev["Close"]) * 100
-                )
+                "symbol": symbol,
+                "price": round(price, 2),
+                "change_pct": round(change_pct, 2)
             },
             "indicators": {
-                "rsi": round(rsi, 2),
+                "rsi": rsi,
                 "volume": int(current["Volume"])
             },
             "ai": {
@@ -178,10 +135,9 @@ def get_stock(symbol: str):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-
-# =========================
+# ==========================
 # Run Server
-# =========================
+# ==========================
 if __name__ == "__main__":
     uvicorn.run(
         "main:app",

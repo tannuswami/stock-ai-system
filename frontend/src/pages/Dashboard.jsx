@@ -1,109 +1,313 @@
-import { useEffect, useState } from 'react';
-import { motion } from 'framer-motion';
-import { Search, TrendingUp, Users, DollarSign, AlertCircle } from 'lucide-react';
-import StockCard from '../components/StockCard';
-import TradingChart from '../components/TradingChart';
-import { useGetStocksQuery } from '../redux/services/stockApi';
+import React, { useState } from "react";
+import API from "../services/api";
 
-const Dashboard = () => {
-  const [searchTerm, setSearchTerm] = useState('');
-  const { data: topStocks, isLoading } = useGetStocksQuery({ limit: 20 });
-  
-  const popularStocks = ['AAPL', 'TSLA', 'GOOGL', 'MSFT', 'NVDA', 'RELIANCE.NS', 'TCS.NS'];
+import Navbar from "../components/Navbar";
+import MarketIndices from "../components/MarketIndices";
+import Watchlist from "../components/Watchlist";
+import CandleChart from "../components/CandleChart";
+import NewsPanel from "../components/NewsPanel";
+import MarketMovers from "../components/MarketMovers";
+import TradingSignals from "../components/TradingSignals";
+import TimeframeAnalysis from "../components/TimeframeAnalysis";
+import SupportResistance from "../components/SupportResistance";
+
+function Dashboard() {
+
+  const [symbol, setSymbol] = useState("AAPL");
+  const [stock, setStock] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  const fetchStock = async () => {
+
+    if (!symbol.trim()) {
+      alert("Enter Stock Symbol");
+      return;
+    }
+
+    try {
+
+      setLoading(true);
+
+      const response = await API.get(`/api/stocks/${symbol}`);
+
+      setStock(response.data);
+
+    } catch (error) {
+
+      console.error(error);
+      alert("Stock Not Found");
+
+    } finally {
+
+      setLoading(false);
+    }
+  };
 
   return (
-    <div className="p-8 max-w-7xl mx-auto">
-      {/* Header */}
-      <motion.div
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="mb-12"
+    <>
+      <Navbar />
+
+      <div
+        style={{
+          background: "#0f172a",
+          minHeight: "100vh",
+          color: "white",
+          padding: "30px"
+        }}
       >
-        <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent mb-4">
-          Market Dashboard
-        </h1>
-        <p className="text-xl text-gray-300">Real-time insights & AI predictions</p>
-      </motion.div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
-        <motion.div className="bg-white/10 backdrop-blur-xl rounded-2xl p-8 border border-white/20" whileHover={{ scale: 1.02 }}>
-          <div className="flex items-center space-x-4">
-            <div className="p-3 bg-blue-500/20 rounded-xl">
-              <TrendingUp className="w-8 h-8 text-blue-400" />
-            </div>
-            <div>
-              <p className="text-gray-400 text-sm">Market Index</p>
-              <p className="text-3xl font-bold text-white">+2.34%</p>
-            </div>
-          </div>
-        </motion.div>
-        
-        <motion.div className="bg-white/10 backdrop-blur-xl rounded-2xl p-8 border border-white/20" whileHover={{ scale: 1.02 }}>
-          <div className="flex items-center space-x-4">
-            <div className="p-3 bg-emerald-500/20 rounded-xl">
-              <DollarSign className="w-8 h-8 text-emerald-400" />
-            </div>
-            <div>
-              <p className="text-gray-400 text-sm">Portfolio</p>
-              <p className="text-3xl font-bold text-white">$24,567</p>
-            </div>
-          </div>
-        </motion.div>
-        
-        {/* More stat cards */}
-      </div>
+        {/* Top Dashboard */}
+        <MarketIndices />
+        <Watchlist />
+        <NewsPanel />
+        <MarketMovers />
 
-      {/* Search & Popular Stocks */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-12">
-        {/* Search Section */}
-        <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} className="lg:col-span-1">
-          <div className="bg-white/10 backdrop-blur-xl rounded-2xl p-8 border border-white/20">
-            <div className="relative mb-8">
-              <Search className="w-5 h-5 absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Search stocks (AAPL, TSLA...)"
-                className="w-full pl-12 pr-4 py-4 bg-white/5 border border-white/20 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:border-blue-500 transition-all"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-            </div>
-            
-            <div>
-              <h3 className="text-lg font-bold text-white mb-4">Popular Stocks</h3>
-              <div className="space-y-3">
-                {popularStocks.map(symbol => (
-                  <StockCard key={symbol} symbol={symbol} />
-                ))}
-              </div>
-            </div>
-          </div>
-        </motion.div>
+        {/* Analysis Panels */}
+        <TradingSignals stock={stock} />
+        <TimeframeAnalysis stock={stock} />
+        <SupportResistance stock={stock} />
 
-        {/* Main Chart */}
-        <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="lg:col-span-2">
-          <TradingChart 
-            symbol="NIFTY 50" 
-            timeframe="1d" 
-            data={topStocks?.[0]?.chart_data || []}
-          />
-        </motion.div>
-      </div>
+        {/* Header */}
+        <div style={{ marginBottom: "30px" }}>
 
-      {/* Top Movers */}
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-        <h2 className="text-2xl font-bold text-white mb-6">Top Movers</h2>
-        <div className="grid grid-cols-2 lg:grid-cols-4 xl:grid-cols-6 gap-6">
-          {topStocks?.map((stock, idx) => (
-            <StockCard key={idx} {...stock} />
-          )) || Array(6).fill().map((_, idx) => (
-            <div key={idx} className="h-48 bg-white/5 backdrop-blur-xl rounded-2xl animate-pulse" />
-          ))}
+          <h1
+            style={{
+              marginBottom: "10px",
+              fontSize: "34px"
+            }}
+          >
+            QuantumTrade AI Dashboard
+          </h1>
+
+          <p style={{ color: "#94a3b8" }}>
+            Professional Stock Intelligence & AI Trading Analytics
+          </p>
+
         </div>
-      </motion.div>
+
+        {/* Search */}
+        <div
+          style={{
+            display: "flex",
+            gap: "12px",
+            marginBottom: "30px"
+          }}
+        >
+
+          <input
+            type="text"
+            value={symbol}
+            onChange={(e) => setSymbol(e.target.value.toUpperCase())}
+            placeholder="Enter Stock Symbol (AAPL / TSLA / RELIANCE.NS)"
+            style={{
+              padding: "14px",
+              width: "350px",
+              borderRadius: "10px",
+              border: "none",
+              background: "#1e293b",
+              color: "white",
+              outline: "none",
+              fontSize: "16px"
+            }}
+          />
+
+          <button
+            onClick={fetchStock}
+            style={{
+              background: "#2563eb",
+              color: "white",
+              border: "none",
+              borderRadius: "10px",
+              padding: "14px 30px",
+              cursor: "pointer",
+              fontWeight: "bold"
+            }}
+          >
+            Analyze Stock
+          </button>
+
+        </div>
+
+        {/* Loading */}
+        {loading && (
+          <div
+            style={{
+              background: "#1e293b",
+              padding: "20px",
+              borderRadius: "12px",
+              marginBottom: "20px"
+            }}
+          >
+            <h2>Loading AI Analysis...</h2>
+          </div>
+        )}
+
+        {/* Results */}
+        {stock && (
+          <>
+
+            {/* Main Cards */}
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(3, 1fr)",
+                gap: "20px",
+                marginBottom: "30px"
+              }}
+            >
+
+              <Card title="Current Price" value={`$${stock.basic.price}`} />
+              <Card title="Price Change" value={`${stock.basic.change_pct}%`} />
+              <Card title="RSI" value={stock.technical_indicators.rsi} />
+              <Card title="AI Signal" value={stock.ai_prediction.signal} />
+              <Card title="Confidence" value={`${(stock.ai_prediction.confidence * 100).toFixed(0)}%`} />
+              <Card title="Risk Score" value={stock.risk_analysis.risk_score} />
+
+            </div>
+
+            {/* Technical Indicators */}
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(4, 1fr)",
+                gap: "20px",
+                marginBottom: "30px"
+              }}
+            >
+
+              <SmallCard
+                title="20-Day MA"
+                value={stock.technical_indicators.moving_average_20}
+              />
+
+              <SmallCard
+                title="Volatility"
+                value={`${stock.technical_indicators.volatility}%`}
+              />
+
+              <SmallCard
+                title="Volume"
+                value={stock.technical_indicators.volume}
+              />
+
+              <SmallCard
+                title="Market Structure"
+                value={stock.smart_money.market_structure}
+              />
+
+            </div>
+
+            {/* Chart */}
+            <div
+              style={{
+                background: "#1e293b",
+                padding: "25px",
+                borderRadius: "15px",
+                marginBottom: "30px"
+              }}
+            >
+
+              <h2 style={{ marginBottom: "20px" }}>
+                Professional Candlestick Chart
+              </h2>
+
+              <CandleChart data={stock.chart_data} />
+
+            </div>
+
+            {/* Bottom Analysis */}
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr",
+                gap: "20px"
+              }}
+            >
+
+              <div
+                style={{
+                  background: "#1e293b",
+                  padding: "25px",
+                  borderRadius: "15px"
+                }}
+              >
+
+                <h2 style={{ marginBottom: "20px" }}>
+                  AI Trading Summary
+                </h2>
+
+                <p><strong>Signal:</strong> {stock.ai_prediction.signal}</p>
+                <p><strong>Confidence:</strong> {(stock.ai_prediction.confidence * 100).toFixed(0)}%</p>
+                <p><strong>Risk Level:</strong> {stock.risk_analysis.risk_level}</p>
+                <p><strong>Prediction Accuracy:</strong> {stock.ai_prediction.prediction_accuracy}%</p>
+
+              </div>
+
+              <div
+                style={{
+                  background: "#1e293b",
+                  padding: "25px",
+                  borderRadius: "15px"
+                }}
+              >
+
+                <h2 style={{ marginBottom: "20px" }}>
+                  Smart Money Analysis
+                </h2>
+
+                <p><strong>Market Structure:</strong> {stock.smart_money.market_structure}</p>
+                <p><strong>Institutional Activity:</strong> {stock.smart_money.institutional_activity}</p>
+                <p><strong>Volatility:</strong> {stock.technical_indicators.volatility}%</p>
+                <p><strong>Volume:</strong> {stock.technical_indicators.volume}</p>
+
+              </div>
+
+            </div>
+
+          </>
+        )}
+
+      </div>
+    </>
+  );
+}
+
+function Card({ title, value }) {
+  return (
+    <div
+      style={{
+        background: "#1e293b",
+        padding: "25px",
+        borderRadius: "15px",
+        textAlign: "center"
+      }}
+    >
+      <h3 style={{ color: "#94a3b8", marginBottom: "10px" }}>
+        {title}
+      </h3>
+
+      <h2>{value}</h2>
     </div>
   );
-};
+}
+
+function SmallCard({ title, value }) {
+  return (
+    <div
+      style={{
+        background: "#1e293b",
+        padding: "20px",
+        borderRadius: "12px",
+        textAlign: "center"
+      }}
+    >
+      <h4 style={{ color: "#94a3b8", marginBottom: "10px" }}>
+        {title}
+      </h4>
+
+      <h3>{value}</h3>
+    </div>
+  );
+}
 
 export default Dashboard;

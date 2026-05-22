@@ -1,6 +1,6 @@
-import { Line, Chart as ChartJS } from 'react-chartjs-2';
+import { Line } from 'react-chartjs-2';
 import {
-  Chart as ChartJS2,
+  Chart as ChartJS,
   CategoryScale,
   LinearScale,
   PointElement,
@@ -11,7 +11,7 @@ import {
 } from 'chart.js';
 import { motion } from 'framer-motion';
 
-ChartJS2.register(
+ChartJS.register(
   CategoryScale,
   LinearScale,
   PointElement,
@@ -21,13 +21,19 @@ ChartJS2.register(
   Legend
 );
 
-const TradingChart = ({ data, symbol, timeframe }) => {
+const TradingChart = ({ data = [], symbol = "N/A", timeframe = "" }) => {
+
+  // ✅ SAFE DATA FILTER
+  const safeData = Array.isArray(data) ? data.filter(d => d && d.Close) : [];
+
   const chartData = {
-    labels: data?.map(d => new Date(d.Datetime).toLocaleTimeString()) || [],
+    labels: safeData.map(d =>
+      d?.Datetime ? new Date(d.Datetime).toLocaleTimeString() : ""
+    ),
     datasets: [
       {
         label: `${symbol} Price`,
-        data: data?.map(d => d.Close) || [],
+        data: safeData.map(d => d?.Close || 0),
         borderColor: '#3B82F6',
         backgroundColor: 'rgba(59, 130, 246, 0.1)',
         tension: 0.4,
@@ -35,7 +41,7 @@ const TradingChart = ({ data, symbol, timeframe }) => {
       },
       {
         label: 'Volume',
-        data: data?.map(d => d.Volume) || [],
+        data: safeData.map(d => d?.Volume || 0),
         type: 'bar',
         backgroundColor: 'rgba(34, 197, 94, 0.3)',
         yAxisID: 'y1',
@@ -67,16 +73,23 @@ const TradingChart = ({ data, symbol, timeframe }) => {
       },
     },
     plugins: {
-      legend: {
-        position: 'top',
-      },
+      legend: { position: 'top' },
       title: {
         display: true,
-        text: `${symbol} - ${timeframe}`,
+        text: `${symbol || "Stock"} - ${timeframe || ""}`,
         color: 'white',
       },
     },
   };
+
+  // ✅ PREVENT CRASH (NO DATA CASE)
+  if (!safeData.length) {
+    return (
+      <div className="text-white text-center p-10">
+        No data available / Loading...
+      </div>
+    );
+  }
 
   return (
     <motion.div

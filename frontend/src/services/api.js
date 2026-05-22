@@ -1,4 +1,12 @@
+import axios from "axios";
+
 const BASE_URL = "http://localhost:8000"; // change if your backend runs on different port
+
+const API = axios.create({
+  baseURL: BASE_URL,
+});
+
+export default API;
 
 export const fetchStockData = async (symbol) => {
   try {
@@ -6,15 +14,8 @@ export const fetchStockData = async (symbol) => {
 
     const cleanSymbol = symbol.trim().toUpperCase();
 
-    const response = await fetch(`${BASE_URL}/stock/${cleanSymbol}`);
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData?.error || "Stock fetch failed");
-    }
-
-    const data = await response.json();
-    return data;
+    const response = await API.get(`/api/stocks/${cleanSymbol}`);
+    return response.data;
 
   } catch (error) {
     console.error("API ERROR:", error.message);

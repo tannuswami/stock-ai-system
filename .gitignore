@@ -13,3 +13,6 @@ build/
 # OS
 .DS_Store
 Thumbs.db
+
+# Academic / Personal files
+tannu.8thsem*
